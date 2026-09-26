@@ -26,6 +26,14 @@ jobs:
           tar -xzf project_payload.tar.gz
           rm -f project_payload.tar.gz
 
+      - name: Apply Kotlin fixes
+        shell: bash
+        run: |
+          sed -i 's/ACTION_PAUSE -> intent.getStringExtra/ACTION_PAUSE -> intent?.getStringExtra/' app/src/main/java/ir/oligarshia/downloader/service/DownloadService.kt
+          sed -i 's/ACTION_RESUME -> intent.getStringExtra/ACTION_RESUME -> intent?.getStringExtra/' app/src/main/java/ir/oligarshia/downloader/service/DownloadService.kt
+          sed -i 's/ACTION_CANCEL -> intent.getStringExtra/ACTION_CANCEL -> intent?.getStringExtra/' app/src/main/java/ir/oligarshia/downloader/service/DownloadService.kt
+          sed -i 's/val cal = Calendar.getInstance().apply { time = now }/val cal = Calendar.getInstance().apply { this.time = now }/' app/src/main/java/ir/oligarshia/downloader/ui/OligarshiaAppUi.kt
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
