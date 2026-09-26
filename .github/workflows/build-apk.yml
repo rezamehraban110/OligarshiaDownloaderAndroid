@@ -2,7 +2,6 @@ name: Build Android APK
 
 on:
   workflow_dispatch:
-  create:
   push:
     branches: [ main ]
 
@@ -18,7 +17,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Restore project files
+      - name: Restore base project files
         shell: bash
         run: |
           cat payload/part*.txt | base64 -d > project_payload.tar.gz
@@ -26,13 +25,14 @@ jobs:
           tar -xzf project_payload.tar.gz
           rm -f project_payload.tar.gz
 
-      - name: Apply Kotlin fixes
+      - name: Apply v0.1.1 cookie support patches
         shell: bash
         run: |
-          sed -i 's/ACTION_PAUSE -> intent.getStringExtra/ACTION_PAUSE -> intent?.getStringExtra/' app/src/main/java/ir/oligarshia/downloader/service/DownloadService.kt
-          sed -i 's/ACTION_RESUME -> intent.getStringExtra/ACTION_RESUME -> intent?.getStringExtra/' app/src/main/java/ir/oligarshia/downloader/service/DownloadService.kt
-          sed -i 's/ACTION_CANCEL -> intent.getStringExtra/ACTION_CANCEL -> intent?.getStringExtra/' app/src/main/java/ir/oligarshia/downloader/service/DownloadService.kt
-          sed -i 's/val cal = Calendar.getInstance().apply { time = now }/val cal = Calendar.getInstance().apply { this.time = now }/' app/src/main/java/ir/oligarshia/downloader/ui/OligarshiaAppUi.kt
+          set -euo pipefail
+          for p in ci/patches/v011-*.patch; do
+            echo "Applying $p"
+            patch -p2 < "$p"
+          done
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -65,12 +65,12 @@ jobs:
         shell: bash
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/debug/app-debug.apk out/Oligarshia-Downloader-v0.1.0-debug.apk
+          cp app/build/outputs/apk/debug/app-debug.apk out/Oligarshia-Downloader-v0.1.1-debug.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Oligarshia-Downloader-v0.1.0-debug
-          path: out/Oligarshia-Downloader-v0.1.0-debug.apk
+          name: Oligarshia-Downloader-v0.1.1-debug
+          path: out/Oligarshia-Downloader-v0.1.1-debug.apk
           if-no-files-found: error
           retention-days: 14
