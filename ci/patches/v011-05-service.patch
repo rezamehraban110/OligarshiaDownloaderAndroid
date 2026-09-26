@@ -1,0 +1,43 @@
+diff -ruN oligarshia_orig/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/service/DownloadService.kt oligarshia_v011/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/service/DownloadService.kt
+--- oligarshia_orig/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/service/DownloadService.kt	2026-09-26 08:21:57.000000000 +0000
++++ oligarshia_v011/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/service/DownloadService.kt	2026-09-26 15:04:52.141369517 +0000
+@@ -77,19 +77,19 @@
+                     stopSelf()
+                 }
+             }
+-            ACTION_PAUSE -> intent.getStringExtra(EXTRA_TASK_ID)?.let { id ->
++            ACTION_PAUSE -> intent?.getStringExtra(EXTRA_TASK_ID)?.let { id ->
+                 scope.launch {
+                     if (currentTaskId == id) engine.pause(id)
+                     DownloadRepository.update(id) { it.copy(status = DownloadStatus.PAUSED, stage = "مکث شده") }
+                 }
+             }
+-            ACTION_RESUME -> intent.getStringExtra(EXTRA_TASK_ID)?.let { id ->
++            ACTION_RESUME -> intent?.getStringExtra(EXTRA_TASK_ID)?.let { id ->
+                 scope.launch {
+                     if (currentTaskId == id) engine.resume(id)
+                     DownloadRepository.update(id) { it.copy(status = DownloadStatus.DOWNLOADING, stage = "ادامه دانلود") }
+                 }
+             }
+-            ACTION_CANCEL -> intent.getStringExtra(EXTRA_TASK_ID)?.let { id ->
++            ACTION_CANCEL -> intent?.getStringExtra(EXTRA_TASK_ID)?.let { id ->
+                 scope.launch {
+                     DownloadRepository.update(id) { it.copy(status = DownloadStatus.CANCELLED, stage = "لغو شد") }
+                     if (currentTaskId == id) engine.cancel(id)
+@@ -197,11 +197,14 @@
+             notifyCurrent(id, force = true)
+         } catch (t: Throwable) {
+             if (DownloadRepository.get(id)?.status != DownloadStatus.CANCELLED) {
++                val errorMessage = t.message ?: t.javaClass.simpleName
++                val authError = errorMessage.contains("احراز هویت یوتیوب") ||
++                    errorMessage.contains("cookies.txt") || errorMessage.contains("بررسی ربات")
+                 DownloadRepository.update(id) {
+                     it.copy(
+                         status = DownloadStatus.FAILED,
+-                        stage = "خطا در دانلود",
+-                        error = t.message ?: t.javaClass.simpleName,
++                        stage = if (authError) "نیاز به احراز هویت یوتیوب" else "خطا در دانلود",
++                        error = errorMessage,
+                         speedBytesPerSec = 0.0
+                     )
+                 }
