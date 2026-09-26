@@ -1,0 +1,91 @@
+diff -ruN oligarshia_orig/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/data/storage/AppSettings.kt oligarshia_v011/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/data/storage/AppSettings.kt
+--- oligarshia_orig/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/data/storage/AppSettings.kt	2026-09-26 08:18:53.000000000 +0000
++++ oligarshia_v011/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/data/storage/AppSettings.kt	2026-09-26 15:04:27.086537888 +0000
+@@ -5,18 +5,30 @@
+ import kotlinx.coroutines.flow.MutableStateFlow
+ import kotlinx.coroutines.flow.StateFlow
+ import kotlinx.coroutines.flow.asStateFlow
++import java.io.File
+ 
+ object AppSettings {
+     private const val PREF = "oligarshia_settings"
+     private const val KEY_TREE = "download_tree"
++    private const val KEY_COOKIE_NAME = "youtube_cookie_name"
++    private const val COOKIE_FILE = "youtube_cookies.txt"
++
+     private lateinit var appContext: Context
+     private val _downloadTree = MutableStateFlow<String?>(null)
+     val downloadTree: StateFlow<String?> = _downloadTree.asStateFlow()
+ 
++    private val _cookiesConfigured = MutableStateFlow(false)
++    val cookiesConfigured: StateFlow<Boolean> = _cookiesConfigured.asStateFlow()
++
++    private val _cookieName = MutableStateFlow<String?>(null)
++    val cookieName: StateFlow<String?> = _cookieName.asStateFlow()
++
+     fun init(context: Context) {
+         appContext = context.applicationContext
+-        _downloadTree.value = appContext.getSharedPreferences(PREF, Context.MODE_PRIVATE)
+-            .getString(KEY_TREE, null)
++        val prefs = appContext.getSharedPreferences(PREF, Context.MODE_PRIVATE)
++        _downloadTree.value = prefs.getString(KEY_TREE, null)
++        _cookieName.value = prefs.getString(KEY_COOKIE_NAME, null)
++        _cookiesConfigured.value = cookieFile().isFile && cookieFile().length() > 0
+     }
+ 
+     fun setDownloadTree(context: Context, uri: Uri) {
+@@ -26,4 +38,54 @@
+     }
+ 
+     fun currentTreeUri(): String? = _downloadTree.value
++
++    fun importCookies(context: Context, uri: Uri): Result<Unit> = runCatching {
++        val target = File(context.filesDir, COOKIE_FILE)
++        val temp = File(context.cacheDir, "youtube_cookies_import.tmp")
++        context.contentResolver.openInputStream(uri)?.use { input ->
++            temp.outputStream().use { output -> input.copyTo(output) }
++        } ?: error("فایل cookies.txt قابل خواندن نیست.")
++
++        if (temp.length() <= 0) error("فایل cookies.txt خالی است.")
++        val sample = temp.inputStream().bufferedReader().use { reader ->
++            buildString {
++                repeat(80) {
++                    val line = reader.readLine() ?: return@repeat
++                    append(line).append('\n')
++                }
++            }
++        }
++        val looksValid = sample.contains("Netscape HTTP Cookie File", ignoreCase = true) ||
++            sample.lineSequence().any { it.count { ch -> ch == '\t' } >= 6 }
++        if (!looksValid) error("فرمت فایل معتبر نیست. فایل Netscape cookies.txt را انتخاب کنید.")
++
++        if (!temp.renameTo(target)) {
++            temp.copyTo(target, overwrite = true)
++            temp.delete()
++        }
++        target.setReadable(false, false)
++        target.setReadable(true, true)
++        target.setWritable(false, false)
++        target.setWritable(true, true)
++
++        val displayName = uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() } ?: "cookies.txt"
++        context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
++            .edit().putString(KEY_COOKIE_NAME, displayName).apply()
++        _cookieName.value = displayName
++        _cookiesConfigured.value = true
++    }
++
++    fun clearCookies(context: Context) {
++        runCatching { File(context.filesDir, COOKIE_FILE).delete() }
++        context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
++            .edit().remove(KEY_COOKIE_NAME).apply()
++        _cookieName.value = null
++        _cookiesConfigured.value = false
++    }
++
++    fun currentCookiesPath(): String? = if (::appContext.isInitialized) {
++        cookieFile().takeIf { it.isFile && it.length() > 0 }?.absolutePath
++    } else null
++
++    private fun cookieFile(): File = File(appContext.filesDir, COOKIE_FILE)
+ }
