@@ -21,7 +21,7 @@ jobs:
       - name: Restore project files
         shell: bash
         run: |
-          base64 -d project_payload.b64 > project_payload.tar.gz
+          cat payload/part*.txt | base64 -d > project_payload.tar.gz
           tar -xzf project_payload.tar.gz
           rm -f project_payload.tar.gz
 
