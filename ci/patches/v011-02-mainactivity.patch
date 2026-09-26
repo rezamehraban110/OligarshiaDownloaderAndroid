@@ -1,0 +1,43 @@
+diff -ruN oligarshia_orig/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/MainActivity.kt oligarshia_v011/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/MainActivity.kt
+--- oligarshia_orig/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/MainActivity.kt	2026-09-26 08:21:57.000000000 +0000
++++ oligarshia_v011/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/MainActivity.kt	2026-09-26 15:04:27.091625933 +0000
+@@ -4,6 +4,7 @@
+ import android.content.pm.PackageManager
+ import android.os.Build
+ import android.os.Bundle
++import android.widget.Toast
+ import androidx.activity.ComponentActivity
+ import androidx.activity.compose.setContent
+ import androidx.activity.result.contract.ActivityResultContracts
+@@ -23,13 +24,30 @@
+         }
+     }
+ 
++    private val cookiePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
++        if (uri != null) {
++            AppSettings.importCookies(this, uri)
++                .onSuccess {
++                    Toast.makeText(this, "کوکی یوتیوب با موفقیت اضافه شد.", Toast.LENGTH_SHORT).show()
++                }
++                .onFailure {
++                    Toast.makeText(this, it.message ?: "خطا در خواندن cookies.txt", Toast.LENGTH_LONG).show()
++                }
++        }
++    }
++
+     override fun onCreate(savedInstanceState: Bundle?) {
+         super.onCreate(savedInstanceState)
+         requestRuntimePermissions()
+ 
+         setContent {
+             OligarshiaRoot(
+-                onPickFolder = { folderPicker.launch(null) }
++                onPickFolder = { folderPicker.launch(null) },
++                onPickCookies = { cookiePicker.launch(arrayOf("text/plain", "application/octet-stream", "*/*")) },
++                onClearCookies = {
++                    AppSettings.clearCookies(this)
++                    Toast.makeText(this, "کوکی یوتیوب حذف شد.", Toast.LENGTH_SHORT).show()
++                }
+             )
+         }
+     }
