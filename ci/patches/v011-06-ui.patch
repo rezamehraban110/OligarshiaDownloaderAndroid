@@ -1,0 +1,123 @@
+diff -ruN oligarshia_orig/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/ui/OligarshiaAppUi.kt oligarshia_v011/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/ui/OligarshiaAppUi.kt
+--- oligarshia_orig/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/ui/OligarshiaAppUi.kt	2026-09-26 08:22:41.000000000 +0000
++++ oligarshia_v011/OligarshiaDownloaderAndroid/app/src/main/java/ir/oligarshia/downloader/ui/OligarshiaAppUi.kt	2026-09-26 15:04:52.142651781 +0000
+@@ -95,7 +95,11 @@
+ import java.util.Locale
+ 
+ @Composable
+-fun OligarshiaRoot(onPickFolder: () -> Unit) {
++fun OligarshiaRoot(
++    onPickFolder: () -> Unit,
++    onPickCookies: () -> Unit,
++    onClearCookies: () -> Unit
++) {
+     var darkMode by remember { mutableStateOf(true) }
+     var persian by remember { mutableStateOf(true) }
+ 
+@@ -108,7 +112,9 @@
+                 persian = persian,
+                 onToggleTheme = { darkMode = !darkMode },
+                 onToggleLanguage = { persian = !persian },
+-                onPickFolder = onPickFolder
++                onPickFolder = onPickFolder,
++                onPickCookies = onPickCookies,
++                onClearCookies = onClearCookies
+             )
+         }
+     }
+@@ -122,11 +128,15 @@
+     onToggleTheme: () -> Unit,
+     onToggleLanguage: () -> Unit,
+     onPickFolder: () -> Unit,
++    onPickCookies: () -> Unit,
++    onClearCookies: () -> Unit,
+     vm: HomeViewModel = viewModel()
+ ) {
+     val context = LocalContext.current
+     val items by vm.items.collectAsStateWithLifecycle()
+     val folder by AppSettings.downloadTree.collectAsStateWithLifecycle()
++    val cookiesConfigured by AppSettings.cookiesConfigured.collectAsStateWithLifecycle()
++    val cookieName by AppSettings.cookieName.collectAsStateWithLifecycle()
+     var links by remember { mutableStateOf("") }
+     var quality by remember { mutableStateOf(DownloadQuality.BEST) }
+     val snackbar = remember { SnackbarHostState() }
+@@ -232,6 +242,70 @@
+                             fontSize = 12.sp,
+                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = .55f)
+                         )
++
++                        HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = .07f))
++
++                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
++                            Row(
++                                modifier = Modifier.fillMaxWidth(),
++                                verticalAlignment = Alignment.CenterVertically,
++                                horizontalArrangement = Arrangement.SpaceBetween
++                            ) {
++                                Column(Modifier.weight(1f)) {
++                                    Text(
++                                        if (persian) "احراز هویت یوتیوب" else "YouTube authentication",
++                                        fontWeight = FontWeight.SemiBold
++                                    )
++                                    Text(
++                                        if (cookiesConfigured) {
++                                            if (persian) "cookies.txt فعال است؛ فقط داخل خود گوشی نگه‌داری می‌شود." else
++                                                "cookies.txt is active and stays only on this device."
++                                        } else {
++                                            if (persian) "برای خطای «ربات نیستید؟» یک cookies.txt معتبر اضافه کنید." else
++                                                "Add a valid cookies.txt when YouTube asks to confirm you're not a bot."
++                                        },
++                                        fontSize = 11.sp,
++                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = .58f)
++                                    )
++                                }
++                                if (cookiesConfigured) {
++                                    Icon(
++                                        Icons.Default.CheckCircle, null,
++                                        tint = Color(0xFF35C982),
++                                        modifier = Modifier.size(22.dp)
++                                    )
++                                }
++                            }
++                            if (cookiesConfigured && !cookieName.isNullOrBlank()) {
++                                Text(
++                                    cookieName.orEmpty(),
++                                    fontSize = 11.sp,
++                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = .45f),
++                                    maxLines = 1,
++                                    overflow = TextOverflow.Ellipsis
++                                )
++                            }
++                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
++                                OutlinedButton(
++                                    onClick = onPickCookies,
++                                    modifier = Modifier.weight(1f),
++                                    shape = RoundedCornerShape(14.dp)
++                                ) {
++                                    Text(
++                                        if (cookiesConfigured) {
++                                            if (persian) "تعویض cookies.txt" else "Replace cookies.txt"
++                                        } else {
++                                            if (persian) "افزودن cookies.txt" else "Add cookies.txt"
++                                        }
++                                    )
++                                }
++                                if (cookiesConfigured) {
++                                    OutlinedButton(onClick = onClearCookies, shape = RoundedCornerShape(14.dp)) {
++                                        Text(if (persian) "حذف" else "Remove")
++                                    }
++                                }
++                            }
++                        }
+                     }
+                 }
+             }
+@@ -352,7 +426,7 @@
+     val time = remember(now) { SimpleDateFormat("HH:mm:ss", Locale.US).format(now) }
+     val gregorian = remember(now) { SimpleDateFormat("yyyy/MM/dd", Locale.US).format(now) }
+     val jalali = remember(now) {
+-        val cal = Calendar.getInstance().apply { time = now }
++        val cal = Calendar.getInstance().apply { this.time = now }
+         JalaliCalendar.fromGregorian(
+             cal.get(Calendar.YEAR),
+             cal.get(Calendar.MONTH) + 1,
